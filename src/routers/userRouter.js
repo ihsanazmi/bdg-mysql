@@ -2,19 +2,8 @@ const conn = require('../connection/index')
 const router = require('express').Router()
 const valid = require('validator')
 const bcryptjs = require('bcryptjs')
+const sendVerification = require('../emails/nodemailer')
 
-// CREATE USER
-// router.post('/users', (req, res)=>{
-//     let {username, name, email, password} = req.body
-
-//     let sql = `INSERT INTO users(username, name, email, password) VALUES('${username}', '${name}', '${email}', '${password}')`
-
-//     conn.query(sql, (err, result)=>{
-//         // Jika terdapat error
-//         if(err) return res.send(err)
-//         res.send(result)
-//     })
-// })
 
 // GET ALL USER
 router.get('/users', (req, res)=>{
@@ -40,6 +29,7 @@ router.post('/users', (req, res)=>{
     conn.query(sql, data, (err, result)=>{
         if(err) return res.send(err)
 
+        sendVerification(data)
         conn.query(sql2, (err, result)=>{
             if(err) return res.send(err)
             res.send(result)
@@ -87,5 +77,17 @@ router.post('/users/login', (req, res)=>{
         res.send(user)
     })
 })
+
+router.get('/verification/:username', (req, res)=>{
+    let sql = `UPDATE users SET verify = true WHERE username = '${req.params.username}'`
+
+    conn.query(sql, (err, result)=>{
+        if(err) return res.send(err)
+
+        res.send('<p>Verifikasi email berhasil, silahkan login di halaman login')
+    })
+})
+
+
 
 module.exports = router
