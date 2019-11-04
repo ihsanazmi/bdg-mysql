@@ -3,7 +3,88 @@ const router = require('express').Router()
 const valid = require('validator')
 const bcryptjs = require('bcryptjs')
 const sendVerification = require('../emails/nodemailer')
+const multer = require('multer')
+const path = require('path')
+const uploadDirectory = path.join(__dirname, '/../../public/uploads')
+const fs = require('fs')
 
+// menentukan dimana foto akan disimpan dan bagaimana foto tersebut diberi nama
+const _storage = multer.diskStorage({
+    // menentukan folder penyimpanan foto
+    destination: function(req, file, cb){
+        cb(null, uploadDirectory)
+    },
+    // menentukan pola nama file
+    filename: function(req, file, cb){
+        cb(null, 'avatar-' + req.params.username + path.extname(file.originalname))
+    }
+})
+
+const upload = multer({
+    storage : _storage,
+    limits:{
+        fileSize: 1000000 // byte, max 1MB
+    },
+    fileFilter(req, file, cb){
+        if(!file.originalname.match(/\.(jpg|jpeg|png)$/)){
+            return cb(new Error('Format file harus jpg/jpeg/png'))
+        }
+        cb(null, true)
+    }
+})
+
+// POST AVATAR
+router.post('/avatar/:username', upload.single('avatar') ,(req, res)=>{
+    const sql = `SELECT * FROM users WHERE username = '${req.params.username}'`
+    const sql2 = `UPDATE users SET avatar = '${req.file.filename}' WHERE username = '${req.params.username}' `
+    // cari user berdasarkan username
+    conn.query(sql, (err, result)=>{
+        if(err) return res.send(err)
+        // {id,  username, name, email, oassword, avatar, verify}
+        let user = result[0]
+        if(!user) return res.send({error: "User Not Found"})
+        // Simpan nama foto yang baru di upload
+        conn.query(sql2, (err, result)=>{
+            if(err) return res.send({error: err.message})
+            res.send({filename: req.file.filename})
+        })
+
+    })
+}, (err, req, res, next)=>{
+    if(err) return res.send({error: err.message})
+})
+
+// ACCESS IMAGE
+router.get('/avatar/:imageName', (req, res)=>{
+    let letakFolder = {
+        root: uploadDirectory,
+    }
+
+    let namaFile = req.params.imageName
+
+    res.sendFile(namaFile, letakFolder, function(err){
+        if(err) return res.send({error: err.message})
+    })
+
+})
+
+// DELETE AVATAR
+router.patch('/avatar/delete/:username', (req,res)=>{
+    const sql = `SELECT * FROM users WHERE username = '${req.params.username}'`
+    const sql2 = `UPDATE users SET avatar = null WHERE username = '${req.params.username}'`
+
+    conn.query(sql, (err, result)=>{
+        if(err) return res.send({error: err.message})
+        let avatar = result[0].avatar
+        fs.unlinkSync(uploadDirectory + '/' + avatar)
+        conn.query(sql2, (err, result) =>{
+            if(err) return res.send({error: err.message})
+
+            res.send(result)
+        })
+
+    })
+})
 
 // GET ALL USER
 router.get('/users', (req, res)=>{
@@ -42,6 +123,8 @@ router.patch('/users/update/:userid', (req, res)=>{
     let sql = `UPDATE users SET ? WHERE id = ?`
     let data = [req.body, req.params.userid]
 
+    data[0].password = bcryptjs.hashSync(data[0].password, 8)
+
     conn.query(sql, data, (err, result)=>{
         if(err) return res.send(err)
         res.send(result)
@@ -73,6 +156,9 @@ router.post('/users/login', (req, res)=>{
         if(!hasil){
             return res.send({error: "Password Salah"})
         }
+        if(user.verify === 0){
+            return res.send({error: "Please Verification your email"})
+        }
 
         res.send(user)
     })
@@ -88,6 +174,22 @@ router.get('/verification/:username', (req, res)=>{
     })
 })
 
+// READ PROFILE
+router.get('/users/profile/:username', (req, res)=>{
+    let sql = `SELECT * FROM users WHERE username = '${req.params.username}'`
 
+    conn.query(sql, (err, result)=>{
+        if(err) return res.send({error: err.message})
+
+        let user = result[0]
+
+        if(!user) return res.send({error: "User not Found"})
+
+        res.send({
+            ...user,
+            avatar: `http:/localhost:2019/avatar/${user.avatar}`
+        })
+    })
+})
 
 module.exports = router
