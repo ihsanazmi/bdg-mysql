@@ -4,8 +4,8 @@
 /node_modules
 /.pnp
 .pnp.js
-src/email.config.js
-src/connection/index.js
+# src/email.config.js
+# src/connection/index.js
 
 # testing
 /coverage

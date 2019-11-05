@@ -18,7 +18,7 @@ let sendVerification = (data)=>{
         to: data.email,
         subject: 'Selamat Datang',
         html: `<h1>Hello ${data.name}</h1><br>
-                <p>Silahkan klik <a href="http://localhost:2019/verification/${data.username}">disini</a> untuk verifikasi email</p>`
+                <p>Silahkan klik <a href="https://backend-mysql-kumis.herokuapp.com/verification/${data.username}">disini</a> untuk verifikasi email</p>`
     }
     
     transporter.sendMail(mail, (err, result)=>{
