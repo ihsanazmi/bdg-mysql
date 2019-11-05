@@ -34,22 +34,24 @@ const upload = multer({
 })
 
 // POST AVATAR
-router.post('/avatar/:username', upload.single('avatar') ,(req, res)=>{
+router.post('/avatar/:username', (req, res, next)=>{
     const sql = `SELECT * FROM users WHERE username = '${req.params.username}'`
-    const sql2 = `UPDATE users SET avatar = '${req.file.filename}' WHERE username = '${req.params.username}' `
-    // cari user berdasarkan username
+
     conn.query(sql, (err, result)=>{
-        if(err) return res.send(err)
-        // {id,  username, name, email, oassword, avatar, verify}
+        if(err) return res.send({error: err.message})
         let user = result[0]
         if(!user) return res.send({error: "User Not Found"})
-        // Simpan nama foto yang baru di upload
-        conn.query(sql2, (err, result)=>{
-            if(err) return res.send({error: err.message})
-            res.send({filename: req.file.filename})
-        })
-
+        req.user = user
+        next()
     })
+},upload.single('avatar') ,(req, res)=>{
+    const sql = `UPDATE users SET avatar = '${req.file.filename}' WHERE username = '${req.params.username}' `
+    
+    conn.query(sql, (err, result)=>{
+        if(err) return res.send(err)
+        res.send({filename: req.file.filename})
+    })
+
 }, (err, req, res, next)=>{
     if(err) return res.send({error: err.message})
 })
@@ -76,11 +78,13 @@ router.patch('/avatar/delete/:username', (req,res)=>{
     conn.query(sql, (err, result)=>{
         if(err) return res.send({error: err.message})
         let avatar = result[0].avatar
-        fs.unlinkSync(uploadDirectory + '/' + avatar)
-        conn.query(sql2, (err, result) =>{
+        fs.unlink(uploadDirectory + '/' + avatar, (err)=>{
             if(err) return res.send({error: err.message})
-
-            res.send(result)
+            
+            conn.query(sql2, (err, result) =>{
+                if(err) return res.send({error: err.message})
+                res.send(result)
+            })
         })
 
     })
