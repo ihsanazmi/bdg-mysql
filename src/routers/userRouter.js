@@ -191,7 +191,7 @@ router.get('/users/profile/:username', (req, res)=>{
 
         res.send({
             ...user,
-            avatar: `http:/localhost:2019/avatar/${user.avatar}`
+            avatar: `https://backend-mysql-kumis.herokuapp.com/avatar/${user.avatar}`
         })
     })
 })
