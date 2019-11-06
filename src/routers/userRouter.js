@@ -126,8 +126,10 @@ router.post('/users', (req, res)=>{
 router.patch('/users/update/:userid', (req, res)=>{
     let sql = `UPDATE users SET ? WHERE id = ?`
     let data = [req.body, req.params.userid]
-
-    data[0].password = bcryptjs.hashSync(data[0].password, 8)
+    
+    if(data[0].password !== ''){
+        data[0].password = bcryptjs.hashSync(data[0].password, 8)
+    }
 
     conn.query(sql, data, (err, result)=>{
         if(err) return res.send(err)
