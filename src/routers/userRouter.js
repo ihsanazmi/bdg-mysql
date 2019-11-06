@@ -26,7 +26,7 @@ const upload = multer({
         fileSize: 1000000 // byte, max 1MB
     },
     fileFilter(req, file, cb){
-        if(!file.originalname.match(/\.(jpg|jpeg|png)$/)){
+        if(!file.originalname.match(/\.(jpg|jpeg|png|JPG)$/)){
             return cb(new Error('Format file harus jpg/jpeg/png'))
         }
         cb(null, true)
@@ -127,9 +127,8 @@ router.patch('/users/update/:username', upload.single('avatar'), (req, res)=>{
     let sql = `UPDATE users SET ? WHERE username = ?`
     let data = [req.body, req.params.username]
     
-    if(data[0].password === ''){
-        delete data[0].password
-    }
+    if(req.file) data[0].avatar = req.file.filename
+
     if(data[0].password){
         data[0].password = bcryptjs.hashSync(data[0].password, 8)
     }
