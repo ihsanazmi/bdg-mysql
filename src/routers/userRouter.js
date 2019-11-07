@@ -5,7 +5,7 @@ const bcryptjs = require('bcryptjs')
 const sendVerification = require('../emails/nodemailer')
 const multer = require('multer')
 const path = require('path')
-const uploadDirectory = path.join(__dirname, '/../../public/uploads')
+const uploadDirectory = path.join(__dirname, '/../../public/uploads/')
 const fs = require('fs')
 
 // menentukan dimana foto akan disimpan dan bagaimana foto tersebut diberi nama
@@ -16,7 +16,7 @@ const _storage = multer.diskStorage({
     },
     // menentukan pola nama file
     filename: function(req, file, cb){
-        cb(null, 'avatar-' + req.params.username + path.extname(file.originalname))
+        cb(null, Date.now() + req.params.username + path.extname(file.originalname))
     }
 })
 
@@ -72,18 +72,24 @@ router.get('/avatar/:imageName', (req, res)=>{
 
 // DELETE AVATAR
 router.patch('/avatar/delete/:username', (req,res)=>{
-    const sql = `SELECT * FROM users WHERE username = '${req.params.username}'`
+    const sql = `SELECT avatar FROM users WHERE username = '${req.params.username}'`
     const sql2 = `UPDATE users SET avatar = null WHERE username = '${req.params.username}'`
 
     conn.query(sql, (err, result)=>{
         if(err) return res.send({error: err.message})
-        let avatar = result[0].avatar
-        fs.unlink(uploadDirectory + '/' + avatar, (err)=>{
+
+        if(!result[0].avatar){
+            return res.send({error: err.message})
+        }
+
+        let imgPath = uploadDirectory + result[0].avatar
+
+        fs.unlink(imgPath, (err)=>{
             if(err) return res.send({error: err.message})
             
             conn.query(sql2, (err, result) =>{
                 if(err) return res.send({error: err.message})
-                res.send(result)
+                res.send("Berhasil di hapus")
             })
         })
 
@@ -124,7 +130,8 @@ router.post('/users', (req, res)=>{
 
 // UPDATE USER
 router.patch('/users/update/:username', upload.single('avatar'), (req, res)=>{
-    let sql = `UPDATE users SET ? WHERE username = ?`
+    let sql = `SELECT avatar FROM users WHERE username = '${req.params.username}'`
+    let sql2 = `UPDATE users SET ? WHERE username = ?`
     let data = [req.body, req.params.username]
     
     if(req.file) data[0].avatar = req.file.filename
@@ -133,10 +140,21 @@ router.patch('/users/update/:username', upload.single('avatar'), (req, res)=>{
         data[0].password = bcryptjs.hashSync(data[0].password, 8)
     }
 
-    conn.query(sql, data, (err, result)=>{
-        if(err) return res.send(err)
-        res.send(result)
+    conn.query(sql, (err, result)=>{
+        if(err) return res.send({error: err.message})
+
+        if (result[0].avatar){
+            let avatarName = result[0].avatar
+            let imgPath = `${uploadDirectory}${avatarName}`
+
+            fs.unlinkSync(imgPath)
+        }
+        conn.query(sql2, data, (err, result)=>{
+            if(err) return res.send({error: err.message})
+            res.send(req.file)
+        })
     })
+
 })
 
 // DELETE USER
@@ -196,6 +214,7 @@ router.get('/users/profile/:username', (req, res)=>{
         res.send({
             ...user,
             avatar: `https://backend-mysql-kumis.herokuapp.com/avatar/${user.avatar}`
+            // avatar: `http://localhost:2019/avatar/${user.avatar}`
         })
     })
 })
